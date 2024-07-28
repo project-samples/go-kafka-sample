@@ -7,9 +7,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/core-go/health"
-	hk "github.com/core-go/health/kafka"
 	hm "github.com/core-go/health/mongo"
-	"github.com/core-go/kafka"
+	"github.com/core-go/kafka/confluent"
 	w "github.com/core-go/mongo/writer"
 	"github.com/core-go/mq"
 	v "github.com/core-go/mq/validator"
@@ -18,7 +17,7 @@ import (
 
 type ApplicationContext struct {
 	HealthHandler *health.Handler
-	Read          func(ctx context.Context, handle func(context.Context, []byte, map[string]string))
+	Receive       func(ctx context.Context, handle func(context.Context, []byte, map[string]string))
 	Handle        func(context.Context, []byte, map[string]string)
 }
 
@@ -37,9 +36,9 @@ func NewApp(ctx context.Context, cfg Config) (*ApplicationContext, error) {
 		logInfo = log.InfoMsg
 	}
 
-	reader, er2 := kafka.NewReaderByConfig(cfg.Reader, logError, true)
+	receiver, er2 := kafka.NewConsumerByConfig(cfg.Reader, logError)
 	if er2 != nil {
-		log.Error(ctx, "Cannot create a new reader. Error: "+er2.Error())
+		log.Error(ctx, "Cannot create a new receiver. Error: "+er2.Error())
 		return nil, er2
 	}
 	validator, err := v.NewValidator[*User]()
@@ -47,20 +46,20 @@ func NewApp(ctx context.Context, cfg Config) (*ApplicationContext, error) {
 		return nil, err
 	}
 	errorHandler := mq.NewErrorHandler[*User](logError)
-	producer, err := kafka.NewWriterByConfig(*cfg.KafkaWriter, nil)
+	sender, err := kafka.NewProducerByConfig(*cfg.KafkaWriter, nil)
 	if err != nil {
 		return nil, err
 	}
 	writer := w.NewWriter[*User](db, "user")
-	handler := mq.NewRetryHandlerByConfig[User](cfg.Retry, writer.Write, validator.Validate, errorHandler.RejectWithMap, nil, producer.Write, logError, logInfo)
+	han := mq.NewRetryHandlerByConfig[User](cfg.Retry, writer.Write, validator.Validate, errorHandler.RejectWithMap, nil, sender.Produce, logError, logInfo)
 	mongoChecker := hm.NewHealthChecker(client)
-	readerChecker := hk.NewKafkaHealthChecker(cfg.Reader.Brokers, "kafka_reader")
-	producerChecker := hk.NewKafkaHealthChecker(cfg.KafkaWriter.Brokers, "kafka_producer")
-	healthHandler := health.NewHandler(mongoChecker, readerChecker, producerChecker)
+	receiverChecker := kafka.NewKafkaHealthChecker(cfg.Reader.Brokers, "kafka_consumer")
+	senderChecker := kafka.NewKafkaHealthChecker(cfg.KafkaWriter.Brokers, "kafka_producer")
+	healthHandler := health.NewHandler(mongoChecker, receiverChecker, senderChecker)
 
 	return &ApplicationContext{
 		HealthHandler: healthHandler,
-		Read:          reader.Read,
-		Handle:        handler.Handle,
+		Receive:       receiver.Consume,
+		Handle:        han.Handle,
 	}, nil
 }
