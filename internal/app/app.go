@@ -18,7 +18,7 @@ import (
 
 type ApplicationContext struct {
 	HealthHandler *health.Handler
-	Receive       func(ctx context.Context, handle func(context.Context, []byte, map[string]string))
+	Read          func(ctx context.Context, handle func(context.Context, []byte, map[string]string))
 	Handle        func(context.Context, []byte, map[string]string)
 }
 
@@ -37,9 +37,9 @@ func NewApp(ctx context.Context, cfg Config) (*ApplicationContext, error) {
 		logInfo = log.InfoMsg
 	}
 
-	receiver, er2 := kafka.NewReaderByConfig(cfg.Reader, logError, true)
+	reader, er2 := kafka.NewReaderByConfig(cfg.Reader, logError, true)
 	if er2 != nil {
-		log.Error(ctx, "Cannot create a new receiver. Error: "+er2.Error())
+		log.Error(ctx, "Cannot create a new reader. Error: "+er2.Error())
 		return nil, er2
 	}
 	validator, err := v.NewValidator[*User]()
@@ -47,20 +47,20 @@ func NewApp(ctx context.Context, cfg Config) (*ApplicationContext, error) {
 		return nil, err
 	}
 	errorHandler := mq.NewErrorHandler[*User](logError)
-	sender, err := kafka.NewWriterByConfig(*cfg.KafkaWriter, nil)
+	producer, err := kafka.NewWriterByConfig(*cfg.KafkaWriter, nil)
 	if err != nil {
 		return nil, err
 	}
 	writer := w.NewWriter[*User](db, "user")
-	han := mq.NewRetryHandlerByConfig[User](cfg.Retry, writer.Write, validator.Validate, errorHandler.RejectWithMap, nil, sender.Write, logError, logInfo)
+	handler := mq.NewRetryHandlerByConfig[User](cfg.Retry, writer.Write, validator.Validate, errorHandler.RejectWithMap, nil, producer.Write, logError, logInfo)
 	mongoChecker := hm.NewHealthChecker(client)
-	receiverChecker := hk.NewKafkaHealthChecker(cfg.Reader.Brokers, "kafka_consumer")
-	senderChecker := hk.NewKafkaHealthChecker(cfg.KafkaWriter.Brokers, "kafka_producer")
-	healthHandler := health.NewHandler(mongoChecker, receiverChecker, senderChecker)
+	readerChecker := hk.NewKafkaHealthChecker(cfg.Reader.Brokers, "kafka_reader")
+	producerChecker := hk.NewKafkaHealthChecker(cfg.KafkaWriter.Brokers, "kafka_producer")
+	healthHandler := health.NewHandler(mongoChecker, readerChecker, producerChecker)
 
 	return &ApplicationContext{
 		HealthHandler: healthHandler,
-		Receive:       receiver.Read,
-		Handle:        han.Handle,
+		Read:          reader.Read,
+		Handle:        handler.Handle,
 	}, nil
 }
