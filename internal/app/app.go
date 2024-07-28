@@ -7,6 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/core-go/health"
+	hk "github.com/core-go/health/kafka"
 	hm "github.com/core-go/health/mongo"
 	"github.com/core-go/kafka"
 	w "github.com/core-go/mongo/writer"
@@ -53,8 +54,8 @@ func NewApp(ctx context.Context, cfg Config) (*ApplicationContext, error) {
 	writer := w.NewWriter[*User](db, "user")
 	han := mq.NewRetryHandlerByConfig[User](cfg.Retry, writer.Write, validator.Validate, errorHandler.RejectWithMap, nil, sender.Write, logError, logInfo)
 	mongoChecker := hm.NewHealthChecker(client)
-	receiverChecker := kafka.NewKafkaHealthChecker(cfg.Reader.Brokers, "kafka_consumer")
-	senderChecker := kafka.NewKafkaHealthChecker(cfg.KafkaWriter.Brokers, "kafka_producer")
+	receiverChecker := hk.NewKafkaHealthChecker(cfg.Reader.Brokers, "kafka_consumer")
+	senderChecker := hk.NewKafkaHealthChecker(cfg.KafkaWriter.Brokers, "kafka_producer")
 	healthHandler := health.NewHandler(mongoChecker, receiverChecker, senderChecker)
 
 	return &ApplicationContext{
