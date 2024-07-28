@@ -18,20 +18,18 @@ retry:
   goroutines: false
   key: key
 
-reader:
+handler:
+  key: key
+  goroutines: true
+  retry:
+    1: 5
+    2: 7
+    3: 9
+
+consumer:
   brokers: tricycle-01.srvs.cloudkafka.com:9094
   client:
     username: ah1t9hk0
     password: QvMB75cxJ48KYRnGfwXcRNxzALyAeb7-
   group_id: my-group
-  topic: ah1t9hk0-default
-
-writer:
-  brokers:
-    - tricycle-01.srvs.cloudkafka.com:9094
-    - tricycle-02.srvs.cloudkafka.com:9094
-    - tricycle-03.srvs.cloudkafka.com:9094
-  client:
-    username: ah1t9hk0
-    password: QvMB75cxJ48KYRnGfwXcRNxzALyAeb7-
   topic: ah1t9hk0-default
