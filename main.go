@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 
-	"github.com/core-go/config"
-	"github.com/core-go/health/server"
+	"github.com/core-go/mq/config"
+	"github.com/core-go/mq/server"
 
 	"go-service/internal/app"
 )

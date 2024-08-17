@@ -1,9 +1,9 @@
 package app
 
 import (
-	"github.com/core-go/health/server"
 	"github.com/core-go/kafka"
 	"github.com/core-go/mq"
+	"github.com/core-go/mq/server"
 	"github.com/core-go/mq/zap"
 )
 

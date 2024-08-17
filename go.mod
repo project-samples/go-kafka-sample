@@ -3,12 +3,11 @@ module go-service
 go 1.18
 
 require (
-	github.com/core-go/config v1.0.1
 	github.com/core-go/health v1.0.3
 	github.com/core-go/kafka v1.0.2
 	github.com/core-go/mongo v1.1.1
 	github.com/core-go/mq v1.2.0
-	go.mongodb.org/mongo-driver v1.16.0
+	go.mongodb.org/mongo-driver v1.16.1
 )
 
 require (
